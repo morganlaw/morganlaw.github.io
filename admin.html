@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Console - Morgan Law</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Courier New', monospace;
+            background-color: #000;
+            color: #fff;
+            height: 100vh;
+            overflow: hidden;
+        }
+        
+        .terminal-header {
+            background-color: #333;
+            padding: 10px;
+            border-bottom: 1px solid #555;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .terminal-title {
+            color: #fff;
+            font-size: 14px;
+        }
+        
+        .terminal-controls {
+            display: flex;
+            gap: 5px;
+        }
+        
+        .control-btn {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            border: none;
+            cursor: pointer;
+        }
+        
+        .close { background-color: #ff5f56; }
+        .minimize { background-color: #ffbd2e; }
+        .maximize { background-color: #27ca3f; }
+        
+        .back-link {
+            color: #fff;
+            text-decoration: none;
+            font-size: 12px;
+        }
+        
+        .back-link:hover {
+            color: #fff;
+            text-decoration: underline;
+        }
+        
+        .terminal-body {
+            padding: 20px;
+            height: calc(100vh - 60px);
+            overflow-y: auto;
+            box-sizing: border-box;
+        }
+        
+        .terminal-content {
+            white-space: pre-wrap;
+            font-size: 14px;
+        }
+        
+        .current-line {
+            display: inline-block;
+        }
+        
+        .cursor {
+            animation: blink 1s infinite;
+            background-color: #fff;
+            width: 8px;
+            height: 16px;
+            display: inline-block;
+        }
+        
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0; }
+        }
+        
+        .command-input {
+            position: absolute;
+            left: -9999px;
+            opacity: 0;
+        }
+        
+        .output-line {
+            margin-bottom: 2px;
+        }
+        
+        .error {
+            color: #ff0000;
+        }
+        
+        .success {
+            color: #00ff00;
+        }
+        
+        .info {
+            color: #ffff00;
+        }
+    </style>
+</head>
+<body>
+    <div class="terminal-header">
+        <div class="terminal-title">Morgan Law Admin Console v2.1.3</div>
+        <div style="display: flex; gap: 20px; align-items: center;">
+            <a href="index.html" class="back-link">← exit</a>
+            <div class="terminal-controls">
+                <button class="control-btn close"></button>
+                <button class="control-btn minimize"></button>
+                <button class="control-btn maximize"></button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="terminal-body">
+        <div class="terminal-content" id="terminal">Morgan Law Administration Terminal
+Version 2.1.3
+Copyright (c) 2024 Morgan Law. All rights reserved.
+
+System initialized successfully.
+Connected to database: morganlaw_prod
+Active sessions: 3
+Last backup: 2024-01-15 14:32:07
+
+Type 'help' for available commands.
+
+admin@morganlaw:~$ <span class="current-line" id="currentLine"></span><span class="cursor"></span>
+        </div>
+        
+        <input type="text" class="command-input" id="commandInput" autofocus>
+    </div>
+
+    <script>
+        const terminal = document.getElementById('terminal');
+        const currentLine = document.getElementById('currentLine');
+        const commandInput = document.getElementById('commandInput');
+        
+        const fileSystem = {
+            '/': {
+                'password.txt': 'stop forgetting your passwords!\npassword: password123',
+                'banking_info.txt': 'CONFIDENTIAL - FINANCIAL SUMMARY\n=================================\nLast Updated: 15-Jan-2024\nAccess Level: RESTRICTED\n\nACCOUNT HOLDINGS:\n\nSkyline Holdings BV\nIBAN: NL91 ABNA 0417 1643 00\nCurrent Balance: USD 89,342,876.23\nRegistered: Amsterdam, Netherlands\nDirector: J. Vanderberg (nominee)\nLast Transfer: USD 8.7M (incoming)\n\nEmerald Investments Ltd\nIBAN: IE29 AIBK 9311 5212 3456 78\nCurrent Balance: EUR 67,445,192.88\nRegistered: Dublin, Ireland\nDirector: M. O\'Sullivan (nominee)\nLast Transfer: EUR 12.2M (outgoing)\n\nAtlantic Trading Corp\nSwift: HSBC BM HM\nAccount: 001-447789-001\nCurrent Balance: USD 156,789,043.67\nRegistered: Hamilton, Bermuda\nDirector: R. Thompson (nominee)\nLast Transfer: USD 23.1M (incoming)\n\nLuxembourg Finance SA\nIBAN: LU28 0019 4006 4471 0000\nCurrent Balance: EUR 98,776,234.91\nRegistered: Luxembourg City\nDirector: P. Mueller (nominee)\nLast Transfer: EUR 15.8M (internal)\n\nCaribbean Holdings Ltd\nSwift: CIBC KY KX\nAccount: 447-8821-9966\nCurrent Balance: USD 234,567,891.45\nRegistered: George Town, Cayman Islands\nDirector: A. Johnson (nominee)\nLast Transfer: USD 45.2M (incoming)\n\nBritish Ventures Inc\nSwift: RBVI VG VG\nAccount: 2255-6633-8877\nCurrent Balance: USD 78,934,567.12\nRegistered: Road Town, British Virgin Islands\nDirector: S. Williams (nominee)\nLast Transfer: USD 6.9M (outgoing)\n\nAsia Capital Pte Ltd\nSwift: DBSS SG SG\nAccount: 1144-9955-2288\nCurrent Balance: SGD 145,678,923.34\nRegistered: Singapore\nDirector: L. Chen (nominee)\nLast Transfer: SGD 18.7M (incoming)\n\nAlpine Holdings AG\nIBAN: CH93 0076 2011 6238 5295 7\nCurrent Balance: CHF 189,456,783.67\nRegistered: Zug, Switzerland\nDirector: H. Zimmerman (nominee)\nLast Transfer: CHF 22.3M (internal)\n\nTRUST ACCOUNTS:\n\nFirst Dynasty Trust\nTrustee: Citco Fund Services\nAccount: CF-9966-3377-4488\nCurrent Balance: USD 345,678,912.34\nBeneficiaries: [REDACTED]\nEstablished: 2008\n\nSecond Generation Trust\nTrustee: Maples Fiduciary Services  \nAccount: MF-7733-5544-9922\nCurrent Balance: USD 89,234,567.89\nBeneficiaries: [REDACTED]\nEstablished: 2011\n\nEducational Foundation\nTrustee: Intertrust Group\nAccount: IT-4455-8811-6677\nCurrent Balance: USD 67,891,234.56\nBeneficiaries: [REDACTED]\nEstablished: 2015\n\nFamily Office Trust\nTrustee: Vistra Trust\nAccount: VT-2299-7766-3344\nCurrent Balance: USD 123,456,789.12\nBeneficiaries: [REDACTED]\nEstablished: 2019\n\nTOTAL CONSOLIDATED: USD 1,687,574,423.45\n\n** REMINDER: Monthly consolidation reports\n   due to Geneva office by 25th **\n\n** All wire instructions require dual \n   authorization from designated signatories **',
+                'company_financial_information': 'DIRECTORY'
+            },
+            '/company_financial_information': {
+                'profits_before_hiring_me.jpg': 'IMAGE:assets/fig1.svg',
+                'profits_after_hiring_me.jpg': 'IMAGE:assets/fig2.svg'
+            }
+        };
+        
+        let currentDirectory = '/';
+        let awaitingPassword = false;
+        let pendingFile = '';
+        let currentCommand = '';
+        let invalidCommandCount = 0;
+        let hasShownRealCommandMessage = false;
+        
+        const commonCliCommands = [
+            'mkdir', 'rmdir', 'rm', 'cp', 'mv', 'touch', 'chmod', 'chown', 'ps', 'kill', 
+            'grep', 'find', 'which', 'whereis', 'man', 'top', 'htop', 'df', 'du', 'free',
+            'history', 'whoami', 'id', 'su', 'sudo', 'ssh', 'scp', 'rsync', 'wget', 'curl',
+            'ping', 'traceroute', 'netstat', 'ifconfig', 'ip', 'iptables', 'systemctl',
+            'service', 'mount', 'umount', 'fdisk', 'lsblk', 'tar', 'zip', 'unzip', 'gzip',
+            'gunzip', 'nano', 'vim', 'vi', 'emacs', 'less', 'more', 'head', 'tail', 'sort',
+            'uniq', 'wc', 'cut', 'awk', 'sed', 'tr', 'date', 'cal', 'uptime', 'uname',
+            'lscpu', 'lsusb', 'lspci', 'dmesg', 'journalctl', 'crontab', 'at', 'jobs',
+            'bg', 'fg', 'nohup', 'screen', 'tmux', 'alias', 'unalias', 'export', 'env',
+            'printenv', 'source', 'exec', 'eval', 'type', 'file', 'stat', 'ln', 'readlink'
+        ];
+        
+        function getCurrentPath() {
+            return currentDirectory === '/' ? '~' : '~' + currentDirectory;
+        }
+        
+        function getPrompt() {
+            return 'admin@morganlaw:' + getCurrentPath() + '$ ';
+        }
+        
+        const commands = {
+            'help': 'Available commands:\n  ls       - List files and directories\n  cat      - Display file contents (usage: cat filename)\n  open     - Open image files (usage: open filename.jpg)\n  cd       - Change directory (usage: cd dirname or cd .. to go back)\n  pwd      - Show current directory\n  clear    - Clear terminal\n  exit     - Return to main site',
+            'pwd': function() { return getCurrentPath(); },
+            'clear': 'CLEAR_SCREEN',
+            'exit': 'REDIRECT_HOME'
+        };
+        
+        // Update the display as user types
+        commandInput.addEventListener('input', function(e) {
+            currentCommand = commandInput.value;
+            const currentLineElement = document.getElementById('currentLine');
+            if (currentLineElement) {
+                if (awaitingPassword) {
+                    currentLineElement.textContent = '*'.repeat(currentCommand.length);
+                } else {
+                    currentLineElement.textContent = currentCommand;
+                }
+            }
+        });
+        
+        commandInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                const input = commandInput.value.trim();
+                
+                // Handle password input
+                if (awaitingPassword) {
+                    // Add the password line (with asterisks) to terminal
+                    terminal.innerHTML = terminal.innerHTML.replace(/<span class="current-line".*?<\/span><span class="cursor"><\/span>/, '*'.repeat(input.length));
+                    
+                    if (input === 'password123') {
+                        const currentDir = fileSystem[currentDirectory];
+                        terminal.innerHTML += '\n' + currentDir[pendingFile];
+                    } else {
+                        terminal.innerHTML += '\n<span class="error">Access denied: Incorrect password</span>';
+                    }
+                    
+                    awaitingPassword = false;
+                    pendingFile = '';
+                    // Add new prompt line
+                    terminal.innerHTML += '\n' + getPrompt() + '<span class="current-line" id="currentLine"></span><span class="cursor"></span>';
+                } else {
+                    const command = input.split(' ')[0].toLowerCase();
+                    const args = input.split(' ').slice(1);
+                    
+                    // Add the executed command to terminal (with newline for output)
+                    terminal.innerHTML = terminal.innerHTML.replace(/<span class="current-line".*?<\/span><span class="cursor"><\/span>/, input);
+                    
+                    if (command === 'clear') {
+                        terminal.innerHTML = getPrompt() + '<span class="current-line" id="currentLine"></span><span class="cursor"></span>';
+                    } else if (command === 'exit') {
+                        window.location.href = 'index.html';
+                        return;
+                    } else if (command === 'ls') {
+                        const currentDir = fileSystem[currentDirectory];
+                        const items = Object.keys(currentDir).map(item => {
+                            return currentDir[item] === 'DIRECTORY' ? item + '/' : item;
+                        });
+                        terminal.innerHTML += '\n' + items.join('\n');
+                        terminal.innerHTML += '\n' + getPrompt() + '<span class="current-line" id="currentLine"></span><span class="cursor"></span>';
+                    } else if (command === 'cd') {
+                        if (args.length === 0) {
+                            currentDirectory = '/';
+                        } else if (args[0] === '..') {
+                            if (currentDirectory !== '/') {
+                                currentDirectory = '/';
+                            }
+                        } else {
+                            const targetDir = args[0];
+                            const currentDir = fileSystem[currentDirectory];
+                            if (currentDir[targetDir] && currentDir[targetDir] === 'DIRECTORY') {
+                                currentDirectory = currentDirectory === '/' ? '/' + targetDir : currentDirectory + '/' + targetDir;
+                            } else {
+                                terminal.innerHTML += '\n<span class="error">cd: ' + targetDir + ': No such file or directory</span>';
+                            }
+                        }
+                        terminal.innerHTML += '\n' + getPrompt() + '<span class="current-line" id="currentLine"></span><span class="cursor"></span>';
+                    } else if (command === 'pwd') {
+                        terminal.innerHTML += '\n' + getCurrentPath();
+                        terminal.innerHTML += '\n' + getPrompt() + '<span class="current-line" id="currentLine"></span><span class="cursor"></span>';
+                    } else if (command === 'open') {
+                        if (args.length === 0) {
+                            terminal.innerHTML += '\n<span class="error">open: missing file operand</span>';
+                        } else {
+                            const filename = args[0];
+                            const currentDir = fileSystem[currentDirectory];
+                            if (currentDir[filename] && currentDir[filename] !== 'DIRECTORY') {
+                                if (currentDir[filename].startsWith('IMAGE:')) {
+                                    const imagePath = currentDir[filename].substring(6);
+                                    terminal.innerHTML += '\nOpening ' + filename + '...\n';
+                                    terminal.innerHTML += '<img src="' + imagePath + '" style="max-width: 100%; height: auto; border: 1px solid #555; margin: 10px 0;" alt="' + filename + '">';
+                                } else {
+                                    terminal.innerHTML += '\n<span class="error">open: ' + filename + ': Not an image file</span>';
+                                }
+                            } else {
+                                terminal.innerHTML += '\n<span class="error">open: ' + filename + ': No such file or directory</span>';
+                            }
+                        }
+                        terminal.innerHTML += '\n' + getPrompt() + '<span class="current-line" id="currentLine"></span><span class="cursor"></span>';
+                    } else if (command === 'cat') {
+                        if (args.length === 0) {
+                            terminal.innerHTML += '\n<span class="error">cat: missing file operand</span>';
+                        } else {
+                            const filename = args[0];
+                            const currentDir = fileSystem[currentDirectory];
+                            if (currentDir[filename] && currentDir[filename] !== 'DIRECTORY') {
+                                if (filename === 'banking_info.txt') {
+                                    terminal.innerHTML += '\nEnter password: <span class="current-line" id="currentLine"></span><span class="cursor"></span>';
+                                    awaitingPassword = true;
+                                    pendingFile = filename;
+                                    commandInput.value = '';
+                                    terminal.scrollTop = terminal.scrollHeight;
+                                    return;
+                                } else if (currentDir[filename].startsWith('IMAGE:')) {
+                                    const imagePath = currentDir[filename].substring(6);
+                                    terminal.innerHTML += '\nOpening image file: ' + filename;
+                                    terminal.innerHTML += '\n<a href="' + imagePath + '" target="_blank" style="color: #fff; text-decoration: underline;">Click here to view ' + filename + '</a>';
+                                } else {
+                                    terminal.innerHTML += '\n' + currentDir[filename];
+                                }
+                            } else {
+                                terminal.innerHTML += '\n<span class="error">cat: ' + filename + ': No such file or directory</span>';
+                            }
+                        }
+                        terminal.innerHTML += '\n' + getPrompt() + '<span class="current-line" id="currentLine"></span><span class="cursor"></span>';
+                    } else if (commands[command]) {
+                        if (typeof commands[command] === 'function') {
+                            terminal.innerHTML += '\n' + commands[command]();
+                        } else {
+                            terminal.innerHTML += '\n' + commands[command];
+                        }
+                        terminal.innerHTML += '\n' + getPrompt() + '<span class="current-line" id="currentLine"></span><span class="cursor"></span>';
+                    } else if (command !== '') {
+                        // Handle invalid commands with custom messages
+                        invalidCommandCount++;
+                        
+                        if (commonCliCommands.includes(command)) {
+                            // This is a real CLI command
+                            if (!hasShownRealCommandMessage) {
+                                terminal.innerHTML += '\n<span class="error">this is obviously not a real terminal, only supported commands will work.</span>';
+                                hasShownRealCommandMessage = true;
+                            } else if (invalidCommandCount >= 2) {
+                                terminal.innerHTML += '\n<span class="error">this terminal is powered by an LLM prompted to pretend it is a shell. every wasted command costs me money and advances global warming.</span>';
+                            } else {
+                                terminal.innerHTML += '\n<span class="error">bash: ' + command + ': command not found</span>';
+                            }
+                        } else {
+                            // This is not a real command - always show standard bash error
+                            terminal.innerHTML += '\n<span class="error">bash: ' + command + ': command not found</span>';
+                        }
+                        
+                        terminal.innerHTML += '\n' + getPrompt() + '<span class="current-line" id="currentLine"></span><span class="cursor"></span>';
+                    } else {
+                        // Empty command - just add new prompt
+                        terminal.innerHTML += '\n' + getPrompt() + '<span class="current-line" id="currentLine"></span><span class="cursor"></span>';
+                    }
+                }
+                
+                commandInput.value = '';
+                currentCommand = '';
+                const newCurrentLine = document.getElementById('currentLine');
+                if (newCurrentLine) {
+                    newCurrentLine.textContent = '';
+                }
+                terminal.scrollTop = terminal.scrollHeight;
+            }
+        });
+        
+        // Keep input focused
+        commandInput.addEventListener('blur', function() {
+            setTimeout(() => commandInput.focus(), 10);
+        });
+    </script>
+</body>
+</html>
