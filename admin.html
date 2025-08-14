@@ -141,6 +141,7 @@ admin@morganlaw:~$ <span class="current-line" id="currentLine"></span><span clas
 
     <script>
         const terminal = document.getElementById('terminal');
+        const terminalBody = document.querySelector('.terminal-body');
         const currentLine = document.getElementById('currentLine');
         const commandInput = document.getElementById('commandInput');
         
@@ -220,6 +221,9 @@ admin@morganlaw:~$ <span class="current-line" id="currentLine"></span><span clas
                     awaitingPassword = false;
                     pendingFile = '';
                     terminal.innerHTML += '\n' + getPrompt() + '<span class="current-line" id="currentLine"></span><span class="cursor"></span>';
+                    setTimeout(() => {
+                        terminalBody.scrollTop = terminalBody.scrollHeight;
+                    }, 10);
                 } else {
                     const command = input.split(' ')[0].toLowerCase();
                     const args = input.split(' ').slice(1);
@@ -289,7 +293,9 @@ admin@morganlaw:~$ <span class="current-line" id="currentLine"></span><span clas
                                     awaitingPassword = true;
                                     pendingFile = filename;
                                     commandInput.value = '';
-                                    terminal.scrollTop = terminal.scrollHeight;
+                                    setTimeout(() => {
+                                        terminalBody.scrollTop = terminalBody.scrollHeight;
+                                    }, 10);
                                     return;
                                 } else if (currentDir[filename].startsWith('IMAGE:')) {
                                     const imagePath = currentDir[filename].substring(6);
@@ -340,7 +346,9 @@ admin@morganlaw:~$ <span class="current-line" id="currentLine"></span><span clas
                 if (newCurrentLine) {
                     newCurrentLine.textContent = '';
                 }
-                terminal.scrollTop = terminal.scrollHeight;
+                setTimeout(() => {
+                    terminalBody.scrollTop = terminalBody.scrollHeight;
+                }, 10);
             }
         });
         
