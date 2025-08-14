@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Console - Morgan Law</title>
+    <title>Admin Console - m7w</title>
     <style>
         body {
             margin: 0;
@@ -123,13 +123,12 @@
     </div>
     
     <div class="terminal-body">
-        <div class="terminal-content" id="terminal">Morgan Law Administration Terminal
+        <div class="terminal-content" id="terminal">Administration Console
 Version 2.1.3
 Copyright (c) 2024 Morgan Law. All rights reserved.
 
 System initialized successfully.
 Connected to database: morganlaw_prod
-Active sessions: 3
 Last backup: 2024-01-15 14:32:07
 
 Type 'help' for available commands.
@@ -192,7 +191,6 @@ admin@morganlaw:~$ <span class="current-line" id="currentLine"></span><span clas
             'exit': 'REDIRECT_HOME'
         };
         
-        // Update the display as user types
         commandInput.addEventListener('input', function(e) {
             currentCommand = commandInput.value;
             const currentLineElement = document.getElementById('currentLine');
@@ -209,9 +207,7 @@ admin@morganlaw:~$ <span class="current-line" id="currentLine"></span><span clas
             if (e.key === 'Enter') {
                 const input = commandInput.value.trim();
                 
-                // Handle password input
                 if (awaitingPassword) {
-                    // Add the password line (with asterisks) to terminal
                     terminal.innerHTML = terminal.innerHTML.replace(/<span class="current-line".*?<\/span><span class="cursor"><\/span>/, '*'.repeat(input.length));
                     
                     if (input === 'password123') {
@@ -223,13 +219,11 @@ admin@morganlaw:~$ <span class="current-line" id="currentLine"></span><span clas
                     
                     awaitingPassword = false;
                     pendingFile = '';
-                    // Add new prompt line
                     terminal.innerHTML += '\n' + getPrompt() + '<span class="current-line" id="currentLine"></span><span class="cursor"></span>';
                 } else {
                     const command = input.split(' ')[0].toLowerCase();
                     const args = input.split(' ').slice(1);
                     
-                    // Add the executed command to terminal (with newline for output)
                     terminal.innerHTML = terminal.innerHTML.replace(/<span class="current-line".*?<\/span><span class="cursor"><\/span>/, input);
                     
                     if (command === 'clear') {
@@ -317,11 +311,10 @@ admin@morganlaw:~$ <span class="current-line" id="currentLine"></span><span clas
                         }
                         terminal.innerHTML += '\n' + getPrompt() + '<span class="current-line" id="currentLine"></span><span class="cursor"></span>';
                     } else if (command !== '') {
-                        // Handle invalid commands with custom messages
                         invalidCommandCount++;
                         
                         if (commonCliCommands.includes(command)) {
-                            // This is a real CLI command
+                            // real CLI command but unsupported
                             if (!hasShownRealCommandMessage) {
                                 terminal.innerHTML += '\n<span class="error">this is obviously not a real terminal, only supported commands will work.</span>';
                                 hasShownRealCommandMessage = true;
@@ -331,13 +324,12 @@ admin@morganlaw:~$ <span class="current-line" id="currentLine"></span><span clas
                                 terminal.innerHTML += '\n<span class="error">bash: ' + command + ': command not found</span>';
                             }
                         } else {
-                            // This is not a real command - always show standard bash error
+                            // invalid command always show standard bash error
                             terminal.innerHTML += '\n<span class="error">bash: ' + command + ': command not found</span>';
                         }
                         
                         terminal.innerHTML += '\n' + getPrompt() + '<span class="current-line" id="currentLine"></span><span class="cursor"></span>';
                     } else {
-                        // Empty command - just add new prompt
                         terminal.innerHTML += '\n' + getPrompt() + '<span class="current-line" id="currentLine"></span><span class="cursor"></span>';
                     }
                 }
