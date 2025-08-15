@@ -111,7 +111,7 @@ Last backup: 2024-01-15 14:32:07
 
 Type 'help' for available commands.
 
-admin@morganlaw:~$ <span class="current-line" id="currentLine"></span><span class="cursor"></span>
+admin@morganlaw:~$ <span class="current-line" id="currentLine"><span class="cursor"></span></span>
         </div>
         
         <input type="text" class="command-input" id="commandInput" autofocus>
@@ -139,6 +139,9 @@ admin@morganlaw:~$ <span class="current-line" id="currentLine"></span><span clas
         let awaitingPassword = false;
         let pendingFile = '';
         let currentCommand = '';
+        let commandHistory = [];
+        let historyIndex = -1;
+        let cursorPosition = 0;
         let invalidCommandCount = 0;
         let hasShownRealCommandMessage = false;
         
@@ -170,24 +173,173 @@ admin@morganlaw:~$ <span class="current-line" id="currentLine"></span><span clas
             'exit': 'REDIRECT_HOME'
         };
         
+        // Handle arrow keys, command history, and tab completion
+        commandInput.addEventListener('keydown', function(e) {
+            if (awaitingPassword) return;
+            
+            switch(e.key) {
+                case 'Tab':
+                    e.preventDefault();
+                    handleTabCompletion();
+                    break;
+                    
+                case 'ArrowUp':
+                    e.preventDefault();
+                    if (commandHistory.length > 0 && historyIndex < commandHistory.length - 1) {
+                        historyIndex++;
+                        commandInput.value = commandHistory[commandHistory.length - 1 - historyIndex];
+                        cursorPosition = commandInput.value.length;
+                        commandInput.setSelectionRange(cursorPosition, cursorPosition);
+                    }
+                    break;
+                    
+                case 'ArrowDown':
+                    e.preventDefault();
+                    if (historyIndex > 0) {
+                        historyIndex--;
+                        commandInput.value = commandHistory[commandHistory.length - 1 - historyIndex];
+                        cursorPosition = commandInput.value.length;
+                        commandInput.setSelectionRange(cursorPosition, cursorPosition);
+                    } else if (historyIndex === 0) {
+                        historyIndex = -1;
+                        commandInput.value = '';
+                        cursorPosition = 0;
+                    }
+                    break;
+                    
+                case 'ArrowLeft':
+                    e.preventDefault();
+                    cursorPosition = Math.max(0, commandInput.selectionStart - 1);
+                    commandInput.setSelectionRange(cursorPosition, cursorPosition);
+                    break;
+                    
+                case 'ArrowRight':
+                    e.preventDefault();
+                    cursorPosition = Math.min(commandInput.value.length, commandInput.selectionStart + 1);
+                    commandInput.setSelectionRange(cursorPosition, cursorPosition);
+                    break;
+                    
+                case 'Home':
+                    e.preventDefault();
+                    cursorPosition = 0;
+                    commandInput.setSelectionRange(cursorPosition, cursorPosition);
+                    break;
+                    
+                case 'End':
+                    e.preventDefault();
+                    cursorPosition = commandInput.value.length;
+                    commandInput.setSelectionRange(cursorPosition, cursorPosition);
+                    break;
+            }
+            
+            // Update display after key handling
+            currentCommand = commandInput.value;
+            updateDisplay();
+        });
+
         commandInput.addEventListener('input', function(e) {
             currentCommand = commandInput.value;
+            cursorPosition = commandInput.selectionStart;
+            updateDisplay();
+        });
+        
+        function updateDisplay() {
             const currentLineElement = document.getElementById('currentLine');
             if (currentLineElement) {
                 if (awaitingPassword) {
-                    currentLineElement.textContent = '*'.repeat(currentCommand.length);
+                    currentLineElement.innerHTML = '*'.repeat(currentCommand.length) + '<span class="cursor"></span>';
                 } else {
-                    currentLineElement.textContent = currentCommand;
+                    // Split the command at cursor position to show cursor in the right place
+                    const beforeCursor = currentCommand.substring(0, cursorPosition) || '';
+                    const afterCursor = currentCommand.substring(cursorPosition) || '';
+                    currentLineElement.innerHTML = beforeCursor + '<span class="cursor"></span>' + afterCursor;
                 }
             }
-        });
+        }
+        
+        function handleTabCompletion() {
+            const input = commandInput.value;
+            const words = input.split(' ');
+            const currentWord = words[words.length - 1];
+            const isFirstWord = words.length === 1;
+            
+            let matches = [];
+            
+            if (isFirstWord) {
+                // Complete command names
+                const availableCommands = Object.keys(commands).concat(['ls', 'cd', 'pwd', 'cat', 'open', 'clear', 'exit', 'help']);
+                matches = availableCommands.filter(cmd => cmd.startsWith(currentWord.toLowerCase()));
+            } else {
+                // Complete file/directory names
+                const currentDir = fileSystem[currentDirectory];
+                if (currentDir) {
+                    matches = Object.keys(currentDir).filter(item => item.startsWith(currentWord));
+                }
+            }
+            
+            if (matches.length === 1) {
+                // Single match - complete it
+                const completion = matches[0];
+                const beforeCurrentWord = input.substring(0, input.lastIndexOf(currentWord));
+                const newValue = beforeCurrentWord + completion;
+                commandInput.value = newValue;
+                currentCommand = newValue;
+                cursorPosition = newValue.length;
+                commandInput.setSelectionRange(cursorPosition, cursorPosition);
+                updateDisplay();
+            } else if (matches.length > 1) {
+                // Multiple matches - show them
+                const commonPrefix = getCommonPrefix(matches);
+                if (commonPrefix.length > currentWord.length) {
+                    // Complete to common prefix
+                    const beforeCurrentWord = input.substring(0, input.lastIndexOf(currentWord));
+                    const newValue = beforeCurrentWord + commonPrefix;
+                    commandInput.value = newValue;
+                    currentCommand = newValue;
+                    cursorPosition = newValue.length;
+                    commandInput.setSelectionRange(cursorPosition, cursorPosition);
+                    updateDisplay();
+                } else {
+                    // Show all matches
+                    terminal.innerHTML = terminal.innerHTML.replace(/<span class="current-line"[^>]*>.*?<\/span>/, input);
+                    terminal.innerHTML += '\n' + matches.join('  ');
+                    terminal.innerHTML += '\n' + getPrompt() + '<span class="current-line" id="currentLine"></span>';
+                    setTimeout(() => {
+                        updateDisplay();
+                        terminalBody.scrollTop = terminalBody.scrollHeight;
+                    }, 10);
+                }
+            }
+        }
+        
+        function getCommonPrefix(strings) {
+            if (strings.length === 0) return '';
+            if (strings.length === 1) return strings[0];
+            
+            let prefix = '';
+            for (let i = 0; i < strings[0].length; i++) {
+                const char = strings[0][i];
+                if (strings.every(str => str[i] === char)) {
+                    prefix += char;
+                } else {
+                    break;
+                }
+            }
+            return prefix;
+        }
         
         commandInput.addEventListener('keypress', function(e) {
             if (e.key === 'Enter') {
                 const input = commandInput.value.trim();
                 
+                // Add command to history if it's not empty and not a password
+                if (input && !awaitingPassword) {
+                    commandHistory.push(input);
+                    historyIndex = -1; // Reset history index
+                }
+                
                 if (awaitingPassword) {
-                    terminal.innerHTML = terminal.innerHTML.replace(/<span class="current-line".*?<\/span><span class="cursor"><\/span>/, '*'.repeat(input.length));
+                    terminal.innerHTML = terminal.innerHTML.replace(/<span class="current-line"[^>]*>.*?<\/span>/, '*'.repeat(input.length));
                     
                     if (input === 'password123') {
                         const currentDir = fileSystem[currentDirectory];
@@ -198,7 +350,12 @@ admin@morganlaw:~$ <span class="current-line" id="currentLine"></span><span clas
                     
                     awaitingPassword = false;
                     pendingFile = '';
-                    terminal.innerHTML += '\n' + getPrompt() + '<span class="current-line" id="currentLine"></span><span class="cursor"></span>';
+                    terminal.innerHTML += '\n\n' + getPrompt() + '<span class="current-line" id="currentLine"></span>';
+                    currentCommand = '';
+                    cursorPosition = 0;
+                    setTimeout(() => {
+                        updateDisplay();
+                    }, 10);
                     setTimeout(() => {
                         terminalBody.scrollTop = terminalBody.scrollHeight;
                     }, 10);
@@ -206,10 +363,15 @@ admin@morganlaw:~$ <span class="current-line" id="currentLine"></span><span clas
                     const command = input.split(' ')[0].toLowerCase();
                     const args = input.split(' ').slice(1);
                     
-                    terminal.innerHTML = terminal.innerHTML.replace(/<span class="current-line".*?<\/span><span class="cursor"><\/span>/, input);
+                    terminal.innerHTML = terminal.innerHTML.replace(/<span class="current-line"[^>]*>.*?<\/span>/, input);
                     
                     if (command === 'clear') {
-                        terminal.innerHTML = getPrompt() + '<span class="current-line" id="currentLine"></span><span class="cursor"></span>';
+                        terminal.innerHTML = getPrompt() + '<span class="current-line" id="currentLine"></span>';
+                        currentCommand = '';
+                        cursorPosition = 0;
+                        setTimeout(() => {
+                            updateDisplay();
+                        }, 10);
                     } else if (command === 'exit') {
                         window.location.href = 'index.html';
                         return;
@@ -219,7 +381,12 @@ admin@morganlaw:~$ <span class="current-line" id="currentLine"></span><span clas
                             return currentDir[item] === 'DIRECTORY' ? item + '/' : item;
                         });
                         terminal.innerHTML += '\n' + items.join('\n');
-                        terminal.innerHTML += '\n' + getPrompt() + '<span class="current-line" id="currentLine"></span><span class="cursor"></span>';
+                        terminal.innerHTML += '\n\n' + getPrompt() + '<span class="current-line" id="currentLine"></span>';
+                    currentCommand = '';
+                    cursorPosition = 0;
+                    setTimeout(() => {
+                        updateDisplay();
+                    }, 10);
                     } else if (command === 'cd') {
                         if (args.length === 0) {
                             currentDirectory = '/';
@@ -236,10 +403,20 @@ admin@morganlaw:~$ <span class="current-line" id="currentLine"></span><span clas
                                 terminal.innerHTML += '\n<span class="error">cd: ' + targetDir + ': No such file or directory</span>';
                             }
                         }
-                        terminal.innerHTML += '\n' + getPrompt() + '<span class="current-line" id="currentLine"></span><span class="cursor"></span>';
+                        terminal.innerHTML += '\n\n' + getPrompt() + '<span class="current-line" id="currentLine"></span>';
+                    currentCommand = '';
+                    cursorPosition = 0;
+                    setTimeout(() => {
+                        updateDisplay();
+                    }, 10);
                     } else if (command === 'pwd') {
                         terminal.innerHTML += '\n' + getCurrentPath();
-                        terminal.innerHTML += '\n' + getPrompt() + '<span class="current-line" id="currentLine"></span><span class="cursor"></span>';
+                        terminal.innerHTML += '\n\n' + getPrompt() + '<span class="current-line" id="currentLine"></span>';
+                    currentCommand = '';
+                    cursorPosition = 0;
+                    setTimeout(() => {
+                        updateDisplay();
+                    }, 10);
                     } else if (command === 'open') {
                         if (args.length === 0) {
                             terminal.innerHTML += '\n<span class="error">open: missing file operand</span>';
@@ -258,7 +435,12 @@ admin@morganlaw:~$ <span class="current-line" id="currentLine"></span><span clas
                                 terminal.innerHTML += '\n<span class="error">open: ' + filename + ': No such file or directory</span>';
                             }
                         }
-                        terminal.innerHTML += '\n' + getPrompt() + '<span class="current-line" id="currentLine"></span><span class="cursor"></span>';
+                        terminal.innerHTML += '\n\n' + getPrompt() + '<span class="current-line" id="currentLine"></span>';
+                    currentCommand = '';
+                    cursorPosition = 0;
+                    setTimeout(() => {
+                        updateDisplay();
+                    }, 10);
                     } else if (command === 'cat') {
                         if (args.length === 0) {
                             terminal.innerHTML += '\n<span class="error">cat: missing file operand</span>';
@@ -267,10 +449,15 @@ admin@morganlaw:~$ <span class="current-line" id="currentLine"></span><span clas
                             const currentDir = fileSystem[currentDirectory];
                             if (currentDir[filename] && currentDir[filename] !== 'DIRECTORY') {
                                 if (filename === 'banking_info.txt') {
-                                    terminal.innerHTML += '\nEnter password: <span class="current-line" id="currentLine"></span><span class="cursor"></span>';
+                                    terminal.innerHTML += '\nEnter password: <span class="current-line" id="currentLine"></span>';
                                     awaitingPassword = true;
                                     pendingFile = filename;
                                     commandInput.value = '';
+                                    currentCommand = '';
+                                    cursorPosition = 0;
+                                    setTimeout(() => {
+                                        updateDisplay();
+                                    }, 10);
                                     setTimeout(() => {
                                         terminalBody.scrollTop = terminalBody.scrollHeight;
                                     }, 10);
@@ -286,14 +473,24 @@ admin@morganlaw:~$ <span class="current-line" id="currentLine"></span><span clas
                                 terminal.innerHTML += '\n<span class="error">cat: ' + filename + ': No such file or directory</span>';
                             }
                         }
-                        terminal.innerHTML += '\n' + getPrompt() + '<span class="current-line" id="currentLine"></span><span class="cursor"></span>';
+                        terminal.innerHTML += '\n\n' + getPrompt() + '<span class="current-line" id="currentLine"></span>';
+                    currentCommand = '';
+                    cursorPosition = 0;
+                    setTimeout(() => {
+                        updateDisplay();
+                    }, 10);
                     } else if (commands[command]) {
                         if (typeof commands[command] === 'function') {
                             terminal.innerHTML += '\n' + commands[command]();
                         } else {
                             terminal.innerHTML += '\n' + commands[command];
                         }
-                        terminal.innerHTML += '\n' + getPrompt() + '<span class="current-line" id="currentLine"></span><span class="cursor"></span>';
+                        terminal.innerHTML += '\n\n' + getPrompt() + '<span class="current-line" id="currentLine"></span>';
+                    currentCommand = '';
+                    cursorPosition = 0;
+                    setTimeout(() => {
+                        updateDisplay();
+                    }, 10);
                     } else if (command !== '') {
                         invalidCommandCount++;
                         
@@ -312,9 +509,19 @@ admin@morganlaw:~$ <span class="current-line" id="currentLine"></span><span clas
                             terminal.innerHTML += '\n<span class="error">bash: ' + command + ': command not found</span>';
                         }
                         
-                        terminal.innerHTML += '\n' + getPrompt() + '<span class="current-line" id="currentLine"></span><span class="cursor"></span>';
+                        terminal.innerHTML += '\n\n' + getPrompt() + '<span class="current-line" id="currentLine"></span>';
+                    currentCommand = '';
+                    cursorPosition = 0;
+                    setTimeout(() => {
+                        updateDisplay();
+                    }, 10);
                     } else {
-                        terminal.innerHTML += '\n' + getPrompt() + '<span class="current-line" id="currentLine"></span><span class="cursor"></span>';
+                        terminal.innerHTML += '\n\n' + getPrompt() + '<span class="current-line" id="currentLine"></span>';
+                    currentCommand = '';
+                    cursorPosition = 0;
+                    setTimeout(() => {
+                        updateDisplay();
+                    }, 10);
                     }
                 }
                 
@@ -330,10 +537,27 @@ admin@morganlaw:~$ <span class="current-line" id="currentLine"></span><span clas
             }
         });
         
-        // Keep input focused
+        // Keep input focused and update cursor position on click
         commandInput.addEventListener('blur', function() {
             setTimeout(() => commandInput.focus(), 10);
         });
+        
+        commandInput.addEventListener('click', function() {
+            cursorPosition = commandInput.selectionStart;
+            updateDisplay();
+        });
+        
+        commandInput.addEventListener('select', function() {
+            cursorPosition = commandInput.selectionStart;
+            updateDisplay();
+        });
+        
+        // Initialize display after DOM is ready
+        setTimeout(() => {
+            updateDisplay();
+            commandInput.focus();
+        }, 10);
     </script>
 </body>
 </html>
+
